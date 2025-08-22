@@ -2,6 +2,9 @@
 
 A VS Code extension that uses the Zhipu Large Model to translate Jupyter Notebook's Markdown cell into another language, and display the translation result below the original cell. The target language defaults to Chinese, and the default model used is glm-4-flash-250414 (which is **free** to use as of 2025-08-22).
 
+### Demo
+
+![Demo](https://raw.githubusercontent.com/iahhai/ipynb-translator/main/images/demo.gif)
 ## Features
 
 - Translates the selected Markdown cell in Jupyter Notebooks.
