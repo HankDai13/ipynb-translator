@@ -1,0 +1,101 @@
+{
+  "name": "ipynb-translator",
+  "displayName": "ipynb-translator",
+  "description": "Translate Jupyter Notebook Markdown cell using LLM and display the result below the original cell.",
+  "version": "0.0.7",
+  "publisher": "iahhai",
+  "license": "MIT",
+  "icon": "icon.png",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Notebooks","AI"
+  ],
+  "keywords": [
+    "jupyter",
+    "notebook",
+    "cell",
+    "markdown",
+    "translate",
+    "translator",
+    "translation",
+    "ai",
+    "llm",
+    "zhipuai",
+    "glm",
+    "ipynb",
+    "翻译"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "ipynb-translator.translateMarkdownCell",
+        "title": "Translate Markdown cell in Jupyter Notebook"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "ipynb-translator.translateMarkdownCell",
+        "key": "ctrl+shift+t",
+        "mac": "cmd+shift+t",
+        "when": "notebookType == 'jupyter-notebook' && notebookCellType == 'markup'"
+      }
+    ],
+    "menus": {
+      "notebook/cell/title": [
+        {
+          "command": "ipynb-translator.translateMarkdownCell",
+          "when": "notebookType == 'jupyter-notebook' && notebookCellType == 'markup'",
+          "group": "navigation@1",
+          "title": "Translate Markdown cell in Jupyter Notebook"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "IPYNB Translator Configuration",
+      "properties": {
+        "ipynbTranslator.apiKey": {
+          "type": "string",
+          "description": "Your Zhipu AI API Key.",
+          "default": "",
+          "markdownDescription": "Get your API Key from [Zhipu AI Open Platform](https://open.bigmodel.cn/)"
+        },
+        "ipynbTranslator.modelName": {
+          "type": "string",
+          "description": "The model name, default is glm-4-flash-250414. Please check the available models on the Zhipu AI Open Platform.",
+          "default": "glm-4-flash-250414"
+        },
+        "ipynbTranslator.systemPrompt": {
+          "type": "string",
+          "description": "The system prompt for the LLM translation.You can set the target language by changing the system prompt.",
+          "default": "请将以下Markdown文本翻译成中文，只返回翻译后的内容，不要包含任何额外说明或Markdown语法外的字符，为了保持翻译结果语义通顺，你应该恰当地使用意译，而不必与原文的顺序保持严格一致。",
+          "markdownDescription": "Customize the system prompt for the large language model. For example: '翻译以下Markdown文本为中文，翻译结果必须保持原有的Markdown语法格式。'"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src",
+    "test": "vscode-test"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.10",
+    "@types/node": "20.x",
+    "@types/vscode": "^1.80.0",
+    "@typescript-eslint/eslint-plugin": "^8.31.1",
+    "@typescript-eslint/parser": "^8.31.1",
+    "@vscode/test-cli": "^0.0.11",
+    "@vscode/test-electron": "^2.5.2",
+    "eslint": "^9.25.1",
+    "typescript": "^5.8.3"
+  },
+  "dependencies": {
+    "axios": "^1.11.0"
+  }
+}
