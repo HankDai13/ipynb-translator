@@ -4,7 +4,7 @@ A VS Code extension that uses the Zhipu Large Model to translate Jupyter Noteboo
 
 ### Demo
 
-![Demo](https://raw.githubusercontent.com/iahhai/ipynb-translator/main/images/demo.gif)
+![Demo](https://github.com/nonenet/ipynb-translator/blob/main/images/demo.gif)
 ## Features
 
 - Translates the selected Markdown cell in Jupyter Notebooks.

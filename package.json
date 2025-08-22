@@ -6,6 +6,10 @@
   "publisher": "iahhai",
   "license": "MIT",
   "icon": "icon.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nonenet/ipynb-translator.git"
+  },
   "engines": {
     "vscode": "^1.90.0"
   },
