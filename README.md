@@ -4,7 +4,7 @@ A VS Code extension that uses the Zhipu Large Model to translate Jupyter Noteboo
 
 ### Demo
 
-![Demo](https://raw.githubusercontent.com/nonenet/ipynb-translator/refs/heads/main/images/demo.gif)
+![Demo](https://raw.githubusercontent.com/nonenet/ipynb-translator/main/images/demo.gif)
 
 ## Features
 
