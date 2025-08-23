@@ -2,7 +2,7 @@
   "name": "ipynb-translator",
   "displayName": "ipynb-translator",
   "description": "Translate Jupyter Notebook Markdown cell using LLM and display the result below the original cell.",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "publisher": "iahhai",
   "license": "MIT",
   "icon": "icon.png",
@@ -32,6 +32,7 @@
     "翻译"
   ],
   "main": "./out/extension.js",
+  "activationEvents": [],
   "contributes": {
     "commands": [
       {

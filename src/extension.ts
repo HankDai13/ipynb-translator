@@ -1,8 +1,10 @@
 import * as vscode from 'vscode';
 import axios from 'axios';
 
+// 插件激活时调用此方法
 export function activate(context: vscode.ExtensionContext) {
 
+	// 注册翻译命令
 	let disposable = vscode.commands.registerCommand('ipynb-translator.translateMarkdownCell', async () => {
 		const editor = vscode.window.activeNotebookEditor;
 		if (!editor) {
@@ -18,75 +20,87 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 
 		const originalText = selectedCell.document.getText();
-		vscode.window.showInformationMessage(`Translating: ${originalText.substring(0, Math.min(originalText.length, 50))}...`);
+		
+		// 使用 withProgress 封装整个翻译过程，以实现自动关闭的通知
+		await vscode.window.withProgress(
+			{
+				location: vscode.ProgressLocation.Notification,
+				title: 'Translating...',
+				cancellable: false
+			},
+			async (progress) => {
+				const config = vscode.workspace.getConfiguration('ipynbTranslator');
+				const API_KEY = config.get<string>('apiKey');
+				const SYSTEM_PROMPT = config.get<string>('systemPrompt', '请将以下Markdown文本翻译成中文，只返回翻译后的内容，不要包含任何额外说明或Markdown语法外的字符：');
 
-		const config = vscode.workspace.getConfiguration('ipynbTranslator');
-		const API_KEY = config.get<string>('apiKey');
-		const SYSTEM_PROMPT = config.get<string>('systemPrompt', '请将以下Markdown文本翻译成中文，只返回翻译后的内容，不要包含任何额外说明或Markdown语法外的字符：');
-
-		if (!API_KEY) {
-			vscode.window.showErrorMessage('Please configure the API Key of BigModel in VS Code settings');
-			return;
-		}
-
-		const MODEL_NAME = config.get<string>('modelName', 'glm-4-flash-250414');
-		const API_URL = 'https://open.bigmodel.cn/api/paas/v4/chat/completions';
-
-		try {
-			const requestBody: any = {
-				model: MODEL_NAME,
-				messages: [
-					{ role: "user", content: `${SYSTEM_PROMPT}\n\n${originalText}` }
-				],
-				temperature: 0.95,
-				top_p: 0.7,
-				stream: false,
-				max_tokens: 10240
-			};
-			
-			if (MODEL_NAME.includes('4.5')) {
-				requestBody.thinking = {
-					type: 'disabled' // 设置为不思考
-				};
-			}
-			const response = await axios.post(API_URL, requestBody, {
-				headers: {
-					'Authorization': `Bearer ${API_KEY}`,
-					'Content-Type': 'application/json'
+				if (!API_KEY) {
+					vscode.window.showErrorMessage('Please configure the API Key of BigModel in VS Code settings');
+					return;
 				}
-			});
 
-			const translatedText = response.data.choices[0].message.content;
+				const MODEL_NAME = config.get<string>('modelName', 'glm-4-flash-250414');
+				const API_URL = 'https://open.bigmodel.cn/api/paas/v4/chat/completions';
 
-			const newCellData = new vscode.NotebookCellData(
-				vscode.NotebookCellKind.Markup,
-				`${translatedText}`,
-				'markdown'
-			);
+				try {
+					const requestBody: any = {
+						model: MODEL_NAME,
+						messages: [
+							{ role: "user", content: `${SYSTEM_PROMPT}\n\n${originalText}` }
+						],
+						temperature: 0.95,
+						top_p: 0.7,
+						stream: false,
+						max_tokens: 10240
+					};
+					
+					if (MODEL_NAME.includes('4.5')) {
+						requestBody.thinking = {
+							type: 'disabled'
+						};
+					}
+					const response = await axios.post(API_URL, requestBody, {
+						headers: {
+							'Authorization': `Bearer ${API_KEY}`,
+							'Content-Type': 'application/json'
+						}
+					});
 
-			const edit = new vscode.WorkspaceEdit();
-			edit.set(
-				editor.notebook.uri,
-				[
-					new vscode.NotebookEdit(
-						new vscode.NotebookRange(selectedCell.index + 1, selectedCell.index + 1),
-						[newCellData]
-					)
-				]
-			);
-			await vscode.workspace.applyEdit(edit);
+					const translatedText = response.data.choices[0].message.content;
 
-			const successMessage = vscode.window.setStatusBarMessage('Translation completed!', 2000);
+					const newCellData = new vscode.NotebookCellData(
+						vscode.NotebookCellKind.Markup,
+						`${translatedText}`,
+						'markdown'
+					);
 
-		} catch (error: any) {
-			vscode.window.showErrorMessage(`Translation failed: ${error.message}`);
-			console.error('Translation error:', error.response ? error.response.data : error.message);
-		}
+					const edit = new vscode.WorkspaceEdit();
+					edit.set(
+						editor.notebook.uri,
+						[
+							new vscode.NotebookEdit(
+								new vscode.NotebookRange(selectedCell.index + 1, selectedCell.index + 1),
+								[newCellData]
+							)
+						]
+					);
+					await vscode.workspace.applyEdit(edit);
+					
+					// 任务完成后，Promise 自动解决，withProgress 提示自行关闭
+					// 我们可以在这里添加一个成功的状态栏提示
+					vscode.window.setStatusBarMessage('Translation completed!', 2000);
+
+				} catch (error: any) {
+					// 如果出现错误，Promise 也将拒绝，withProgress 提示自行关闭
+					vscode.window.showErrorMessage(`Translation failed: ${error.message}`);
+					console.error('Translation error:', error.response ? error.response.data : error.message);
+				}
+			}
+		);
 	});
 
+	// 将注册的命令添加到订阅中，以便在插件停用时自动清理
 	context.subscriptions.push(disposable);
 }
 
+// 插件停用时调用此方法
 export function deactivate() {}
-
-

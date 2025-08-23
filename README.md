@@ -15,7 +15,7 @@ A VS Code extension that uses the Zhipu Large Model to translate Jupyter Noteboo
 
 1. Open a Jupyter Notebook (`.ipynb`) file in VS Code.
 2. Select a Markdown cell you wish to translate.
-3. Open the Command Palette (Ctrl+Shift+P or Cmd+Shift+P),and search for "Translate Markdown cell in Jupyter Notebook" and  execute the command.Or use the keyboard shortcut (default: Ctrl+Shift+T or Cmd+Shift+P).
+3. Open the Command Palette (Ctrl+Shift+P or Cmd+Shift+P),and search for "Translate Markdown cell in Jupyter Notebook" and  execute the command.Or use the keyboard shortcut (default: Ctrl+Shift+T or Cmd+Shift+T).
 4. After a brief wait, a new Markdown cell containing the translated text will be inserted below the original cell.
 
 ## Requirements
