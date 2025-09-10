@@ -144,14 +144,15 @@ async function translateWithConcurrencyControl<T>(
 
 // 主要翻译函数
 async function translateText(
-	text: string,
-	config: {
-		provider: string;
-		apiKey: string;
-		modelName: string;
-		systemPrompt: string;
-		customApiUrl?: string;
-	}
+        text: string,
+        config: {
+                provider: string;
+                apiKey: string;
+                modelName: string;
+                systemPrompt: string;
+                customApiUrl?: string;
+        },
+        signal?: AbortSignal
 ): Promise<string> {
 	let apiUrl: string;
 	let headers: { [key: string]: string };
@@ -190,8 +191,8 @@ async function translateText(
 		extractResponse = providerConfig.extractResponse;
 	}
 
-	const response = await axios.post(apiUrl, requestBody, { headers });
-	return extractResponse(response);
+        const response = await axios.post(apiUrl, requestBody, { headers, signal });
+        return extractResponse(response);
 }
 
 // 插件激活时调用此方法
@@ -215,106 +216,76 @@ export function activate(context: vscode.ExtensionContext) {
 		const originalText = selectedCell.document.getText();
 		
 		// 使用 withProgress 封装整个翻译过程，以实现自动关闭的通知
-		await vscode.window.withProgress(
-			{
-				location: vscode.ProgressLocation.Notification,
-				title: 'Translating...',
-				cancellable: false
-			},
-			async (progress) => {
-				const config = vscode.workspace.getConfiguration('ipynbTranslator');
-				const provider = config.get<string>('provider', 'zhipu');
-				const API_KEY = config.get<string>('apiKey');
-				const MODEL_NAME = config.get<string>('modelName', 'glm-4-flash');
-				const SYSTEM_PROMPT = config.get<string>('systemPrompt', '请将以下Markdown文本翻译成中文，只返回翻译后的内容，不要包含任何额外说明或Markdown语法外的字符：');
-				const CUSTOM_API_URL = config.get<string>('customApiUrl', '');
+                await vscode.window.withProgress(
+                        {
+                                location: vscode.ProgressLocation.Notification,
+                                title: 'Translating...',
+                                cancellable: true
+                        },
+                        async (progress, token) => {
+                                const config = vscode.workspace.getConfiguration('ipynbTranslator');
+                                const provider = config.get<string>('provider', 'zhipu');
+                                const API_KEY = config.get<string>('apiKey');
+                                const MODEL_NAME = config.get<string>('modelName', 'glm-4-flash');
+                                const SYSTEM_PROMPT = config.get<string>('systemPrompt', '请将以下Markdown文本翻译成中文，只返回翻译后的内容，不要包含任何额外说明或Markdown语法外的字符：');
+                                const CUSTOM_API_URL = config.get<string>('customApiUrl', '');
 
-				if (!API_KEY) {
-					vscode.window.showErrorMessage('Please configure the API Key in VS Code settings');
-					return;
-				}
+                                if (!API_KEY) {
+                                        vscode.window.showErrorMessage('Please configure the API Key in VS Code settings');
+                                        return;
+                                }
 
-				try {
-					let apiUrl: string;
-					let headers: { [key: string]: string };
-					let requestBody: any;
-					let extractResponse: (response: any) => string;
+                                const translationConfig = {
+                                        provider,
+                                        apiKey: API_KEY,
+                                        modelName: MODEL_NAME,
+                                        systemPrompt: SYSTEM_PROMPT,
+                                        customApiUrl: CUSTOM_API_URL
+                                };
 
-					if (provider === 'custom') {
-						if (!CUSTOM_API_URL) {
-							vscode.window.showErrorMessage('Please configure the custom API URL in VS Code settings');
-							return;
-						}
-						// 自定义 API，使用 OpenAI 兼容格式
-						apiUrl = CUSTOM_API_URL;
-						headers = {
-							'Authorization': `Bearer ${API_KEY}`,
-							'Content-Type': 'application/json'
-						};
-						requestBody = {
-							model: MODEL_NAME,
-							messages: [
-								{ role: "system", content: SYSTEM_PROMPT },
-								{ role: "user", content: originalText }
-							],
-							temperature: 0.7,
-							max_tokens: 10240,
-							stream: false
-						};
-						extractResponse = (response: any) => response.data.choices[0].message.content;
-					} else {
-						// 使用预定义的 API 提供商
-						const providerConfig = API_PROVIDERS[provider];
-						if (!providerConfig) {
-							vscode.window.showErrorMessage(`Unsupported provider: ${provider}`);
-							return;
-						}
+                                const controller = new AbortController();
+                                token.onCancellationRequested(() => controller.abort());
 
-						apiUrl = providerConfig.baseUrl;
-						headers = providerConfig.authHeader(API_KEY);
-						requestBody = providerConfig.requestBody(MODEL_NAME, SYSTEM_PROMPT, originalText);
-						extractResponse = providerConfig.extractResponse;
-					}
+                                try {
+                                        const translatedText = await translateText(originalText, translationConfig, controller.signal);
 
-					const response = await axios.post(apiUrl, requestBody, { headers });
-					const translatedText = extractResponse(response);
+                                        const newCellData = new vscode.NotebookCellData(
+                                                vscode.NotebookCellKind.Markup,
+                                                `${translatedText}`,
+                                                'markdown'
+                                        );
 
-					const newCellData = new vscode.NotebookCellData(
-						vscode.NotebookCellKind.Markup,
-						`${translatedText}`,
-						'markdown'
-					);
+                                        const edit = new vscode.WorkspaceEdit();
+                                        edit.set(
+                                                editor.notebook.uri,
+                                                [
+                                                        new vscode.NotebookEdit(
+                                                                new vscode.NotebookRange(selectedCell.index + 1, selectedCell.index + 1),
+                                                                [newCellData]
+                                                        )
+                                                ]
+                                        );
+                                        await vscode.workspace.applyEdit(edit);
 
-					const edit = new vscode.WorkspaceEdit();
-					edit.set(
-						editor.notebook.uri,
-						[
-							new vscode.NotebookEdit(
-								new vscode.NotebookRange(selectedCell.index + 1, selectedCell.index + 1),
-								[newCellData]
-							)
-						]
-					);
-					await vscode.workspace.applyEdit(edit);
-					
-					// 任务完成后，Promise 自动解决，withProgress 提示自行关闭
-					// 我们可以在这里添加一个成功的状态栏提示
-					vscode.window.setStatusBarMessage(`Translation completed using ${provider}!`, 2000);
+                                        vscode.window.setStatusBarMessage(`Translation completed using ${provider}!`, 2000);
 
-				} catch (error: any) {
-					// 如果出现错误，Promise 也将拒绝，withProgress 提示自行关闭
-					let errorMessage = 'Translation failed';
-					if (error.response) {
-						errorMessage += `: ${error.response.status} - ${JSON.stringify(error.response.data)}`;
-					} else {
-						errorMessage += `: ${error.message}`;
-					}
-					vscode.window.showErrorMessage(errorMessage);
-					console.error('Translation error:', error.response ? error.response.data : error.message);
-				}
-			}
-		);
-	});
+                                } catch (error: any) {
+                                        if (token.isCancellationRequested) {
+                                                vscode.window.showInformationMessage('Translation cancelled by user');
+                                                return;
+                                        }
+                                        let errorMessage = 'Translation failed';
+                                        if (error.response) {
+                                                errorMessage += `: ${error.response.status} - ${JSON.stringify(error.response.data)}`;
+                                        } else {
+                                                errorMessage += `: ${error.message}`;
+                                        }
+                                        vscode.window.showErrorMessage(errorMessage);
+                                        console.error('Translation error:', error.response ? error.response.data : error.message);
+                                }
+                        }
+                );
+        });
 
 	// 注册批量翻译所有 Markdown 单元格命令
 	let batchDisposable = vscode.commands.registerCommand('ipynb-translator.translateAllMarkdownCells', async () => {
@@ -390,14 +361,17 @@ export function activate(context: vscode.ExtensionContext) {
 					const results = await translateWithConcurrencyControl(
 						markdownCells,
 						CONCURRENCY,
-						async (cellInfo) => {
-							if (token.isCancellationRequested) {
-								throw new Error('Cancelled by user');
-							}
-							
-							const translatedText = await translateText(cellInfo.text, translationConfig);
-							return { cellInfo, translatedText };
-						},
+                                                async (cellInfo) => {
+                                                        if (token.isCancellationRequested) {
+                                                                throw new Error('Cancelled by user');
+                                                        }
+
+                                                        const controller = new AbortController();
+                                                        token.onCancellationRequested(() => controller.abort());
+
+                                                        const translatedText = await translateText(cellInfo.text, translationConfig, controller.signal);
+                                                        return { cellInfo, translatedText };
+                                                },
 						(completed, total) => {
 							progress.report({
 								increment: (100 / total),
