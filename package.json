@@ -1,9 +1,9 @@
 {
-  "name": "ipynb-translator",
-  "displayName": "ipynb-translator",
-  "description": "Translate Jupyter Notebook Markdown cell using LLM and display the result below the original cell.",
-  "version": "0.0.8",
-  "publisher": "iahhai",
+  "name": "ipynb-translator-multi-api",
+  "displayName": "ipynb-translator (Multi-API)",
+  "description": "Translate Jupyter Notebook Markdown cell using multiple LLM APIs (Zhipu, Aliyun, Volcano, Custom) and display the result below the original cell.",
+  "version": "0.2.1",
+  "publisher": "local",
   "license": "MIT",
   "icon": "icon.png",
   "repository": {
@@ -27,6 +27,11 @@
     "ai",
     "llm",
     "zhipuai",
+    "aliyun",
+    "volcano",
+    "bailian",
+    "doubao",
+    "qwen",
     "glm",
     "ipynb",
     "翻译"
@@ -38,6 +43,10 @@
       {
         "command": "ipynb-translator.translateMarkdownCell",
         "title": "Translate Markdown cell in Jupyter Notebook"
+      },
+      {
+        "command": "ipynb-translator.translateAllMarkdownCells",
+        "title": "Translate All Markdown cells in Jupyter Notebook"
       }
     ],
     "keybindings": [
@@ -46,6 +55,12 @@
         "key": "ctrl+shift+t",
         "mac": "cmd+shift+t",
         "when": "notebookType == 'jupyter-notebook' && notebookCellType == 'markup'"
+      },
+      {
+        "command": "ipynb-translator.translateAllMarkdownCells",
+        "key": "ctrl+shift+alt+t",
+        "mac": "cmd+shift+alt+t",
+        "when": "notebookType == 'jupyter-notebook'"
       }
     ],
     "menus": {
@@ -56,35 +71,82 @@
           "group": "navigation@1",
           "title": "Translate Markdown cell in Jupyter Notebook"
         }
+      ],
+      "notebook/toolbar": [
+        {
+          "command": "ipynb-translator.translateAllMarkdownCells",
+          "when": "notebookType == 'jupyter-notebook'",
+          "group": "navigation@1",
+          "title": "Translate All Markdown cells"
+        }
       ]
     },
     "configuration": {
       "title": "IPYNB Translator Configuration",
       "properties": {
+        "ipynbTranslator.provider": {
+          "type": "string",
+          "enum": ["zhipu", "aliyun", "volcano", "custom"],
+          "enumDescriptions": [
+            "智谱 AI (Zhipu AI)",
+            "阿里百炼 (Aliyun Bailian)",
+            "火山引擎 (Volcano Engine)",
+            "自定义 API (Custom API)"
+          ],
+          "description": "选择 API 提供商 (Choose API Provider)",
+          "default": "zhipu"
+        },
         "ipynbTranslator.apiKey": {
           "type": "string",
-          "description": "Your Zhipu AI API Key.",
+          "description": "API Key for the selected provider.",
           "default": "",
-          "markdownDescription": "Get your API Key from [Zhipu AI Open Platform](https://open.bigmodel.cn/)"
+          "markdownDescription": "获取 API Key: [智谱AI](https://open.bigmodel.cn/) | [阿里百炼](https://dashscope.aliyuncs.com/) | [火山引擎](https://console.volcengine.com/ark/)"
         },
         "ipynbTranslator.modelName": {
           "type": "string",
-          "description": "The model name, default is glm-4-flash-250414. Please check the available models on the Zhipu AI Open Platform.",
-          "default": "glm-4-flash-250414"
+          "description": "模型名称 (Model name)",
+          "default": "glm-4-flash",
+          "markdownDescription": "常用模型: **智谱**: glm-4-flash, glm-4-turbo | **阿里**: qwen-max, qwen-turbo | **火山**: doubao-pro-4k, doubao-lite-4k"
+        },
+        "ipynbTranslator.customApiUrl": {
+          "type": "string",
+          "description": "自定义 API URL (仅当 provider 为 custom 时使用)",
+          "default": "",
+          "markdownDescription": "当选择自定义 API 时，请输入完整的 API 端点 URL"
         },
         "ipynbTranslator.systemPrompt": {
           "type": "string",
           "description": "The system prompt for the LLM translation.You can set the target language by changing the system prompt.",
           "default": "请将以下Markdown文本翻译成中文，只返回翻译后的内容，不要包含任何额外说明或Markdown语法外的字符，为了保持翻译结果语义通顺，你应该恰当地使用意译，而不必与原文的顺序保持严格一致。",
           "markdownDescription": "Customize the system prompt for the large language model. For example: '翻译以下Markdown文本为中文，翻译结果必须保持原有的Markdown语法格式。'"
+        },
+        "ipynbTranslator.concurrency": {
+          "type": "number",
+          "description": "批量翻译时的并发数 (Concurrency for batch translation)",
+          "default": 3,
+          "minimum": 1,
+          "maximum": 10,
+          "markdownDescription": "控制同时进行的翻译请求数量。过高可能导致 API 限制，过低会影响速度。"
+        },
+        "ipynbTranslator.skipCodeBlocks": {
+          "type": "boolean",
+          "description": "跳过代码块 (Skip code blocks)",
+          "default": true,
+          "markdownDescription": "是否跳过 Markdown 中的代码块 (```代码```) 不进行翻译。"
+        },
+        "ipynbTranslator.skipMathFormulas": {
+          "type": "boolean",
+          "description": "跳过数学公式 (Skip math formulas)",
+          "default": true,
+          "markdownDescription": "是否跳过数学公式 ($公式$ 和 $$公式$$) 不进行翻译。"
         }
       }
     }
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
-    "compile": "tsc -p ./",
-    "watch": "tsc -watch -p ./",
+    "compile": "npx tsc -p ./",
+    "watch": "npx tsc -watch -p ./",
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src",
     "test": "vscode-test"
