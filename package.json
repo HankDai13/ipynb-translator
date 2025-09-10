@@ -2,7 +2,7 @@
   "name": "ipynb-translator-multi-api",
   "displayName": "ipynb-translator (Multi-API)",
   "description": "Translate Jupyter Notebook Markdown cell using multiple LLM APIs (Zhipu, Aliyun, Volcano, Custom) and display the result below the original cell.",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "publisher": "local",
   "license": "MIT",
   "icon": "icon.png",
